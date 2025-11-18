@@ -379,7 +379,7 @@ class RayWorker:
                 origin = PointVec(optobj_line.Vertexes[0])
                 dir = PointVec(optobj_line.Vertexes[1]) - origin
                 isec_parts = []
-                for obj in optobj.Base:
+                for obj in optobj.Group:
                     obj_boundbox = obj.Shape.BoundBox
                     if obj_boundbox.isValid() and obj_boundbox.intersect(origin, dir):
                         if len(obj.Shape.Solids) == 0 and len(
@@ -835,7 +835,7 @@ def PointVec(point):
 
 def isOpticalObject(obj):
     return obj.TypeId == 'Part::FeaturePython' and hasattr(
-        obj, 'OpticalType') and hasattr(obj, 'Base')
+        obj, 'OpticalType') and obj.hasExtension('App::GeoFeatureGroupExtensionPython')
 
 
 def isRelevantOptic(fp, obj):

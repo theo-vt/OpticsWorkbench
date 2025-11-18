@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-from FreeCAD import Vector, Rotation, activeDocument
+from FreeCAD import Vector, Rotation, activeDocument, Console
 import Ray
 import OpticalObject
 import SunRay
@@ -118,7 +118,6 @@ def makeSunRay(position = Vector(0, 0, 0),
     # group = doc.addObject('App::DocumentObjectGroup','SunRay')
     # group.Group = rays
     # recompute()  
-    
 
 def restartAll():
     for obj in activeDocument().Objects:
@@ -144,6 +143,7 @@ def makeMirror(base = [], collectStatistics = False, transparency=0):
     #reload(OpticalObject)
     '''All FreeCAD objects in base will be optical mirrors.'''
     fp = activeDocument().addObject('Part::FeaturePython', 'Mirror')
+    fp.addExtension("App::GeoFeatureGroupExtensionPython")
     OpticalObject.OpticalObjectWorker(fp, base, type = 'mirror', collectStatistics = collectStatistics, transparency = transparency)
     OpticalObject.OpticalObjectViewProvider(fp.ViewObject)
     recompute()
@@ -153,6 +153,7 @@ def makeAbsorber(base = [], collectStatistics = False, transparency=0):
     #reload(OpticalObject)
     '''All FreeCAD objects in base will be optical light absorbers.'''
     fp = activeDocument().addObject('Part::FeaturePython', 'Absorber')
+    fp.addExtension("App::GeoFeatureGroupExtensionPython")
     OpticalObject.OpticalObjectWorker(fp, base, type = 'absorber', collectStatistics = collectStatistics, transparency = transparency) 
     OpticalObject.OpticalObjectViewProvider(fp.ViewObject)
     recompute()
@@ -162,6 +163,7 @@ def makeLens(base = [], RefractionIndex = 0, material = 'Quartz', collectStatist
     #reload(OpticalObject)
     '''All FreeCAD objects in base will be optical lenses.'''
     fp = activeDocument().addObject('Part::FeaturePython', 'Lens')
+    fp.addExtension("App::GeoFeatureGroupExtensionPython")
     OpticalObject.LensWorker(fp, base, RefractionIndex, material, collectStatistics, transparency = transparency)
     OpticalObject.OpticalObjectViewProvider(fp.ViewObject)
     recompute()
@@ -171,6 +173,7 @@ def makeGrating(base=[], RefractionIndex=1, material='', lpm = 500, GratingType 
     #reload(OpticalObject)
     '''All FreeCAD objects in base will be diffraction gratings.'''
     fp = activeDocument().addObject('Part::FeaturePython', 'Grating')
+    fp.addExtension("App::GeoFeatureGroupExtensionPython")
     OpticalObject.GratingWorker(fp, base, RefractionIndex, material, lpm, GratingType, GratingLinesPlane, order, collectStatistics)
     OpticalObject.OpticalObjectViewProvider(fp.ViewObject)
     recompute()
@@ -242,4 +245,3 @@ def Hits2CSV():
     
     sheet.recompute()
     sheet.ViewObject.doubleClicked()
- 
