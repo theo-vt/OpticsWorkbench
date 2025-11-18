@@ -26,10 +26,9 @@ class OpticalObjectWorker:
                  type='mirror',
                  collectStatistics=False,
                  transparency=0):
+        fp.addObjects(base)
         fp.addProperty('App::PropertyEnumeration', 'OpticalType',
                        'OpticalObject', '').OpticalType = ['mirror', 'absorber']
-        fp.addProperty('App::PropertyLinkList',  'Base',   'OpticalObject',
-                       translate('Mirror', 'FreeCAD objects to be mirrors or absorbers')).Base = base
 
         self.addNewPoperties(fp)
         fp.Transparency = transparency
@@ -65,10 +64,10 @@ class LensWorker:
                  collectStatistics=False,
                  transparency=100):
         self.update = False
+
+        fp.addObjects(base)
         fp.addProperty('App::PropertyEnumeration', 'OpticalType',
                        'Lens', '').OpticalType = ['lens']
-        fp.addProperty('App::PropertyLinkList',  'Base',   'Lens',
-                       translate('Lens', 'FreeCAD objects to be lenses')).Base = base
         fp.addProperty('App::PropertyFloat',  'RefractionIndex',   'Lens',
                        translate('Lens', 'Refractive Index at 580nm (depends on material)')).RefractionIndex = RefractionIndex
         fp.addProperty(
@@ -152,10 +151,9 @@ class GratingWorker:
                  collectStatistics=False,
                  transparency=100):
         self.update = False
+        fp.addObjects(base)
         fp.addProperty('App::PropertyEnumeration', 'OpticalType',
                        'Grating', '').OpticalType = ['grating']
-        fp.addProperty('App::PropertyLinkList',  'Base',   'Grating',
-                       translate('Grating', 'FreeCAD objects to be diffraction gratings')).Base = base
         fp.addProperty('App::PropertyFloat',  'RefractionIndex',   'Grating',
                        translate('Grating', 'Refractive Index at 580nm (depends on material)')).RefractionIndex = RefractionIndex
         fp.addProperty(
@@ -233,12 +231,19 @@ class GratingWorker:
 
         self.update = True
 
+def convertLegacyOpticalObjectToGeoFeatureGroup(obj):
+    # This is a legacy optical obeject
+    if obj.TypeId == 'Part::FeaturePython' and hasattr(obj, 'OpticalType') and hasattr(obj, 'Base'):
+        obj.addExtension("App::GeoFeatureGroupExtensionPython")
+        obj.addObjects(obj.Base)
+        obj.removeProperty('Base')
+
 
 class OpticalObjectViewProvider:
     def __init__(self, vobj):
         '''Set this object to the proxy object of the actual view provider'''
-        vobj.Proxy = self
-        self.Object = vobj.Object
+        if vobj:
+            self.attach(vobj)
 
     def getIcon(self):
         '''Return the icon which will appear in the tree view. This method is optional and if not defined a default icon is shown.'''
@@ -258,16 +263,17 @@ class OpticalObjectViewProvider:
 
     def attach(self, vobj):
         '''Setup the scene sub-graph of the view provider, this method is mandatory'''
+        
+        convertLegacyOpticalObjectToGeoFeatureGroup(vobj.Object)
+        
+        vobj.Proxy = self
         self.Object = vobj.Object
+        vobj.addExtension("Gui::ViewProviderGeoFeatureGroupExtensionPython")
         self.onChanged(vobj, '')
 
     def updateData(self, fp, prop):
         '''If a property of the handled feature has changed we have the chance to handle this here'''
         pass
-
-    def claimChildren(self):
-        '''Return a list of objects that will be modified by this feature'''
-        return self.Object.Base
 
     def onDelete(self, feature, subelements):
         '''Here we can do something when the feature will be deleted'''
