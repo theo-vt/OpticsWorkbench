@@ -6,7 +6,7 @@ __license__ = 'LGPL 3.0'
 
 import os
 import FreeCADGui as Gui
-from FreeCAD import Vector, Rotation, Placement, activeDocument
+from FreeCAD import Vector, Rotation, Placement, activeDocument, Console
 import Part
 import math
 import traceback
@@ -368,71 +368,97 @@ class RayWorker:
 
         return linearray
 
+    # @staticmethod
+    # def getOpticsFromGroup(fp, group):
+    #     allOptics = []
+    #     Console.PrintWarning("Check optic group in {}[{}]\n".format(group.Name, len(group.Group)))
+    #     for optobj in group.Group:
+    #         if isRelevantOptic(fp, optobj):
+    #             Console.PrintWarning("{} is ".format(optobj.Name))
+    #             allOptics.append(optobj)
+    #         elif optobj.hasExtension('App::GeoFeatureGroupExtension'):
+    #            allOptics.extend(RayWorker.getOpticsFromGroup(fp, optobj))
+    #     return allOptics
+
+    @staticmethod
+    def getOptics(fp):
+        allOptics = []
+        toCheck = activeDocument().Objects        
+        while len(toCheck) != 0:
+            obj = toCheck.pop(0)
+            if isRelevantOptic(fp, obj):
+                allOptics.append(obj)
+            elif hasattr(obj, 'Group'):
+                for ingroup in obj.Group:
+                    toCheck.append(ingroup)
+        return allOptics
+        
     def getIntersections(self, fp, line):
         '''returns [(OpticalObject, [(edge/face, intersection point)] )]'''
         isec_struct = []
-        for optobj in activeDocument().Objects:
-            if isRelevantOptic(fp, optobj):
-                # transform ray to optobj coordinate to prevent transforming all shapes to global coordinate
-                optobj_placement_matrix = optobj.getGlobalPlacement().Matrix
-                optobj_line = line.transformed(optobj_placement_matrix.inverse())
-                origin = PointVec(optobj_line.Vertexes[0])
-                dir = PointVec(optobj_line.Vertexes[1]) - origin
-                isec_parts = []
-                for obj in optobj.Group:
-                    obj_boundbox = obj.Shape.BoundBox
-                    if obj_boundbox.isValid() and obj_boundbox.intersect(origin, dir):
-                        if len(obj.Shape.Solids) == 0 and len(
-                                obj.Shape.Shells) == 0:
-                            for edge in obj.Shape.Edges:
-                                # get a normal to the plane where the edge is lying in
-                                if (len(edge.Vertexes) == 2):
-                                    edgedir = PointVec(
-                                        edge.Vertexes[1]) - PointVec(
-                                            edge.Vertexes[0])
-                                else:
-                                    # workaround for circles
-                                    edgedir = edge.valueAt(0) - edge.valueAt(
-                                        0.5)
+        
+        allOptics = self.getOptics(fp)
+        for optobj in allOptics:
+            # transform ray to optobj coordinate to prevent transforming all shapes to global coordinate
+            optobj_placement_matrix = optobj.getGlobalPlacement().Matrix
+            optobj_line = line.transformed(optobj_placement_matrix.inverse())
+            origin = PointVec(optobj_line.Vertexes[0])
+            dir = PointVec(optobj_line.Vertexes[1]) - origin
+            isec_parts = []
+            for obj in optobj.Group:
+                obj_boundbox = obj.Shape.BoundBox
+                if obj_boundbox.isValid() and obj_boundbox.intersect(origin, dir):
+                    if len(obj.Shape.Solids) == 0 and len(
+                            obj.Shape.Shells) == 0:
+                        for edge in obj.Shape.Edges:
+                            # get a normal to the plane where the edge is lying in
+                            if (len(edge.Vertexes) == 2):
+                                edgedir = PointVec(
+                                    edge.Vertexes[1]) - PointVec(
+                                        edge.Vertexes[0])
+                            else:
+                                # workaround for circles
+                                edgedir = edge.valueAt(0) - edge.valueAt(
+                                    0.5)
 
-                                normal = dir.cross(edgedir)
-                                if normal.Length > EPSILON:
-                                    plane = Part.Plane(origin, normal)
-                                    isec = optobj_line.Curve.intersect2d(
-                                        edge.Curve, plane)
-                                    if isec:
-                                        for p in isec:
-                                            p2 = plane.value(p[0], p[1])
-                                            dist = p2 - origin
-                                            vert = Part.Vertex(p2)
-                                            if dist.Length > EPSILON and vert.distToShape(
-                                                    edge
-                                            )[0] < EPSILON and vert.distToShape(
-                                                    optobj_line)[0] < EPSILON:
-                                                # transform edge and ray back to global coordinate
-                                                vert.transformShape(optobj_placement_matrix)
-                                                p2 = PointVec(vert)
-                                                edge.transformShape(optobj_placement_matrix)
-                                                isec_parts.append((edge, p2))
-
-                        for face in obj.Shape.Faces:
-                            if face.BoundBox.intersect(origin, dir):
-                                isec = optobj_line.Curve.intersect(face.Surface)
+                            normal = dir.cross(edgedir)
+                            if normal.Length > EPSILON:
+                                plane = Part.Plane(origin, normal)
+                                isec = optobj_line.Curve.intersect2d(
+                                    edge.Curve, plane)
                                 if isec:
-                                    for p in isec[0]:
-                                        dist = Vector(p.X - origin.x,
-                                                      p.Y - origin.y,
-                                                      p.Z - origin.z)
-                                        vert = Part.Vertex(p)
+                                    for p in isec:
+                                        p2 = plane.value(p[0], p[1])
+                                        dist = p2 - origin
+                                        vert = Part.Vertex(p2)
                                         if dist.Length > EPSILON and vert.distToShape(
-                                                face
+                                                edge
                                         )[0] < EPSILON and vert.distToShape(
                                                 optobj_line)[0] < EPSILON:
-                                            # transform face and ray back to global coordinate
-                                            p.transform(optobj_placement_matrix)
-                                            face.transformShape(optobj_placement_matrix)
-                                            isec_parts.append(
-                                                (face, PointVec(p)))
+                                            # transform edge and ray back to global coordinate
+                                            vert.transformShape(optobj_placement_matrix)
+                                            p2 = PointVec(vert)
+                                            edge.transformShape(optobj_placement_matrix)
+                                            isec_parts.append((edge, p2))
+
+                    for face in obj.Shape.Faces:
+                        if face.BoundBox.intersect(origin, dir):
+                            isec = optobj_line.Curve.intersect(face.Surface)
+                            if isec:
+                                for p in isec[0]:
+                                    dist = Vector(p.X - origin.x,
+                                                    p.Y - origin.y,
+                                                    p.Z - origin.z)
+                                    vert = Part.Vertex(p)
+                                    if dist.Length > EPSILON and vert.distToShape(
+                                            face
+                                    )[0] < EPSILON and vert.distToShape(
+                                            optobj_line)[0] < EPSILON:
+                                        # transform face and ray back to global coordinate
+                                        p.transform(optobj_placement_matrix)
+                                        face.transformShape(optobj_placement_matrix)
+                                        isec_parts.append(
+                                            (face, PointVec(p)))
 
                 if len(isec_parts) > 0:
                     isec_struct.append((optobj, isec_parts))

@@ -120,6 +120,12 @@ def makeSunRay(position = Vector(0, 0, 0),
     # recompute()  
 
 def restartAll():
+    # if activeDocument() is not None:
+    #     if not hasattr(activeDocument(), 'RaysOn'):
+    #         activeDocument().addProperty('App::PropertyBool', 'RaysOn',
+    #                     'OpticalObject', '')
+    #     activeDocument().RaysOn = True
+        
     for obj in activeDocument().Objects:
         if isRay(obj):
             obj.Power = True
@@ -128,6 +134,12 @@ def restartAll():
     recompute()
 
 def allOff():
+    # if activeDocument() is not None:
+    #     if not hasattr(activeDocument(), 'RaysOn'):
+    #         activeDocument().addProperty('App::PropertyBool', 'RaysOn',
+    #                     'OpticalObject', '')
+    #     activeDocument().RaysOn = False
+    
     for obj in activeDocument().Objects:
         if isRay(obj):
             obj.Power = False
